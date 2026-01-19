@@ -1,0 +1,17 @@
+{
+    "name": null,
+    "input_variables": [
+        "length_input",
+        "style_input",
+        "user_input"
+    ],
+    "optional_variables": [],
+    "output_parser": null,
+    "partial_variables": {},
+    "metadata": null,
+    "tags": null,
+    "template": "\nYou are a creative poet.\n\nWrite a {length_input} poem about **{user_input}** in a **{style_input}** style.\nGuidelines:\n- Use vivid imagery and expressive language\n- Maintain a consistent tone throughout\n- Make the poem emotionally engaging\n- Do NOT explain the poem\n- Output ONLY the poem text\n- Make it user friendly and easy to read\n\nPoem:\n",
+    "template_format": "f-string",
+    "validate_template": false,
+    "_type": "prompt"
+}
