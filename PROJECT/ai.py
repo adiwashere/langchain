@@ -2,7 +2,6 @@ from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, AIMessage
 import requests
-
 from langchain_community.tools import DuckDuckGoSearchRun
 from langgraph.prebuilt import create_react_agent
 from langchain_core.prompts import ChatPromptTemplate
@@ -29,4 +28,4 @@ result = agent.invoke(
     {"messages": [("user", "top news in india")]}
 )
 
-print(result)
+print(result.content) 
