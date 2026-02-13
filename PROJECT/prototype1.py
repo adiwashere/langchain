@@ -40,19 +40,8 @@ Answer:
 """)
 
 intent_chain = intent_prompt | model | StrOutputParser()
-#pushed 
 
 
-email_extract_prompt = PromptTemplate.from_template("""
-Extract email details.
-
-Message: {input}
-
-Return format:
-to:
-subject:
-body:
-""")
 
 calendar_extract_prompt = PromptTemplate.from_template("""
 Extract event details from this message.
@@ -66,8 +55,26 @@ date:
 time:
 duration_minutes:
 
-Do not add anything in brackets or extra text.
+Do not add anything else.
+""")
+
+email_extract_prompt = PromptTemplate.from_template("""
+You are an assistant that writes professional emails.
+
+From the message below:
+1. Identify recipient email if mentioned.
+2. Generate a clear subject.
+3. Write a polite and complete email body.
+
+Message: {input}
+
+Return ONLY in this format:
+
+to:
+subject:
+body:
 """)
 
 email_extract_chain = email_extract_prompt | model | StrOutputParser()
 calendar_extract_chain = calendar_extract_prompt | model | StrOutputParser()
+
