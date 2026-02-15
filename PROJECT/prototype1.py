@@ -139,7 +139,7 @@ def parse_details(text):
             else:
                 current_key = None
 
-        # If line does NOT contain ":", it belongs to previous field
+
         elif current_key:
             data[current_key] += "\n" + line.strip()
 
@@ -161,3 +161,129 @@ def get_services():
     gmail_service = build("gmail", "v1", credentials=creds)
 
     return calendar_service, gmail_service
+
+
+def send_email(gmail_service, to, subject, body):
+    message = MIMEText(body)
+    message["to"] = to
+    message["subject"] = subject
+
+    raw_message = base64.urlsafe_b64encode(
+        message.as_bytes()
+    ).decode()
+
+    gmail_service.users().messages().send(
+        userId="me",
+        body={"raw": raw_message}
+    ).execute()
+
+def email_tool(user_input):
+    details_text = email_extract_chain.invoke({"input": user_input})
+    print("\nGenerated Email:\n", details_text)
+
+    data = parse_details(details_text)
+
+    to = data.get("to")
+    subject = data.get("subject", "No Subject")
+    body = data.get("body", "")
+
+    if not to:
+        return "I couldn't find the recipient email."
+
+    calendar_service, gmail_service = get_services()
+    send_email(gmail_service, to, subject, body)
+
+    return f"Email sent to {to}"
+
+
+def create_event(calendar_service, title, date, time, duration):
+    start_dt = datetime.datetime.fromisoformat(f"{date}T{time}:00")
+    end_dt = start_dt + datetime.timedelta(minutes=int(duration))
+
+    event = {
+        "summary": title,
+        "start": {
+            "dateTime": start_dt.isoformat(),
+            "timeZone": "Asia/Kolkata"
+        },
+        "end": {
+            "dateTime": end_dt.isoformat(),
+            "timeZone": "Asia/Kolkata"
+        },
+    }
+
+    calendar_service.events().insert(
+        calendarId="primary",
+        body=event
+    ).execute()
+
+def calendar_tool(user_input):
+    details_text = calendar_extract_chain.invoke({"input": user_input})
+    print("\nExtracted:\n", details_text)
+
+    data = parse_details(details_text)
+    print("Parsed data:", data)
+
+    title = data.get("title", "Meeting")
+    date = data.get("date")
+    time = data.get("time")
+    duration = data.get("duration_minutes", "60")
+
+    # validation
+    if not date:
+        return "I couldn't understand the date."
+
+    if not time or ":" not in time:
+        return "I couldn't understand the time. Please use format HH:MM"
+
+    calendar_service, gmail_service = get_services()
+    create_event(calendar_service, title, date, time, duration)
+
+    return f"Event '{title}' scheduled on {date} at {time}"
+
+def news_tool(user_input):
+    location = location_chain.invoke({"input": user_input}).strip()
+
+    query = f"Latest news today in {location}"
+    results = search.run(query)
+
+    if not results:
+        return f"Sorry I couldn't fetch news for {location}."
+
+    summary_prompt = f"""
+    Summarize the following news results in 3-4 sentences: \n{results}
+    keep it concise and informative and in bullet  points."""
+    summary = model.invoke(summary_prompt)
+    
+
+    return summary.content
+
+
+
+def normal_chat(user_input):
+    chat_history.append(HumanMessage(content=user_input))
+    response = model.invoke(chat_history)
+    chat_history.append(AIMessage(content=response.content))
+    return response.content
+
+
+print("AI Assistant Started (type 'exit' to quit)\n")
+
+while True:
+    user_input = input("You: ")
+
+    if user_input.lower() == "exit":
+        break
+
+    intent = intent_chain.invoke({"input": user_input}).strip().upper()
+
+    if "EMAIL" in intent:
+        reply = email_tool(user_input)
+    elif "CALENDAR" in intent:
+        reply = calendar_tool(user_input)
+    elif "NEWS" in intent:
+        reply = news_tool(user_input)
+    else:
+        reply = normal_chat(user_input)
+
+    print("AI:", reply)
