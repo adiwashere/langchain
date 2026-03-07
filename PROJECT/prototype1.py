@@ -3,11 +3,12 @@ import base64
 import datetime
 from email.mime.text import MIMEText
 from dotenv import load_dotenv
-
+import re
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
 
 # Google APIs
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -17,15 +18,17 @@ from langchain_community.tools import DuckDuckGoSearchRun
 load_dotenv()
 
 
-llm_endpoint = HuggingFaceEndpoint(
-    repo_id="google/gemma-2-9b-it",
-    task="text-generation",
-    temperature=0.2,
-)
+# llm_endpoint = HuggingFaceEndpoint(
+#     repo_id="google/gemma-2-9b-it",
+#     task="text-generation",
+#     temperature=0.2,
+# )
 
-model = ChatHuggingFace(llm=llm_endpoint)
+# model = ChatHuggingFace(llm=llm_endpoint)
+model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)   
 
 chat_history = []
+pending_email = None
 search = DuckDuckGoSearchRun()
 
 intent_prompt = PromptTemplate.from_template("""
@@ -35,6 +38,13 @@ CHAT
 EMAIL
 CALENDAR
 NEWS
+
+Guidelines:
+-EMAIL : If the user is asking to send an email, or asking about email related tasks like writing an email, scheduling an email, etc.
+-CALENDAR : If the user is asking to schedule an event, set a reminder, or anything related to calendar.
+-NEWS : If the user is asking about current news, headlines, or anything related to news and current events.
+-CHAT : For all other messages that do not fit into the above categories, classify as CHAT.
+
 
 If the message asks about:
 - headlines
@@ -75,11 +85,17 @@ From the message below:
 3. Write a polite and complete email body.
 
 Rules:
-- Do not add placeholders like [Your Name]
 - Do not add explanations
+- ALWAYS include all three keys
 - Keep the body under 120 words
+- If any value is missing, leave it blank but keep the key
+- End the body with: 
 
-Return ONLY in this format:
+Best regards,
+{sender_name}
+
+
+Return EXACTLY in this format:
 
 to:
 subject:
@@ -101,6 +117,7 @@ Return only the location name, nothing else.
 email_extract_chain = email_extract_prompt | model | StrOutputParser()
 calendar_extract_chain = calendar_extract_prompt | model | StrOutputParser()
 location_chain = location_extract_prompt | model | StrOutputParser()
+
 
 def parse_details(text):
     data = {}
@@ -148,20 +165,38 @@ def parse_details(text):
 
 SCOPES = [
     "https://www.googleapis.com/auth/calendar.events",
-    "https://www.googleapis.com/auth/gmail.send"
+    "https://www.googleapis.com/auth/gmail.send",
+    "https://www.googleapis.com/auth/gmail.readonly"
 ]
 
+from google.oauth2.credentials import Credentials
+from google.auth.transport.requests import Request
+
 def get_services():
-    flow = InstalledAppFlow.from_client_secrets_file(
-        "credentials.json", SCOPES
-    )
-    creds = flow.run_local_server(port=0)
+    creds = None
+
+    # Check if token.json exists
+    if os.path.exists("token.json"):
+        creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+
+    # If no valid credentials, do login
+    if not creds or not creds.valid:
+        flow = InstalledAppFlow.from_client_secrets_file(
+            "credentials.json", SCOPES
+        )
+        creds = flow.run_local_server(port=0)
+
+        # Save credentials
+        with open("token.json", "w") as token:
+            token.write(creds.to_json())
 
     calendar_service = build("calendar", "v3", credentials=creds)
     gmail_service = build("gmail", "v1", credentials=creds)
 
-    return calendar_service, gmail_service
+    profile = gmail_service.users().getProfile(userId="me").execute()
+    sender_email = profile.get("emailAddress")
 
+    return calendar_service, gmail_service, sender_email
 
 def send_email(gmail_service, to, subject, body):
     message = MIMEText(body)
@@ -178,7 +213,34 @@ def send_email(gmail_service, to, subject, body):
     ).execute()
 
 def email_tool(user_input):
-    details_text = email_extract_chain.invoke({"input": user_input})
+    global pending_email
+
+    # If user confirms sending
+    if pending_email and user_input.strip().upper() == "CONFIRM":
+        _, gmail_service, _ = get_services()
+
+        send_email(
+            gmail_service,
+            pending_email["to"],
+            pending_email["subject"],
+            pending_email["body"]
+        )
+
+        sent_to = pending_email["to"]
+        pending_email = None
+
+        return f"Email successfully sent to {sent_to}"
+
+   
+    calendar_service, gmail_service, sender_email = get_services()
+
+    sender_name = sender_email.split("@")[0]
+
+    details_text = email_extract_chain.invoke({
+        "input": user_input,
+        "sender_name": sender_name
+    })
+
     print("\nGenerated Email:\n", details_text)
 
     data = parse_details(details_text)
@@ -188,14 +250,28 @@ def email_tool(user_input):
     body = data.get("body", "")
 
     if not to:
-        return "I couldn't find the recipient email."
+        return "Whom should I send the email to? Please provide the recipient email address."
 
-    calendar_service, gmail_service = get_services()
-    send_email(gmail_service, to, subject, body)
+    email_pattern = r'^[\w\.-]+@[\w\.-]+\.\w+$'
+    if not re.match(email_pattern, to):
+        return "Invalid email address format."
 
-    return f"Email sent to {to}"
+    pending_email = {
+        "to": to,
+        "subject": subject,
+        "body": body
+    }
 
+    return f"""
+Draft Email:
 
+To: {to}
+Subject: {subject}
+
+{body}
+
+Type CONFIRM to send this email.
+"""
 def create_event(calendar_service, title, date, time, duration):
     start_dt = datetime.datetime.fromisoformat(f"{date}T{time}:00")
     end_dt = start_dt + datetime.timedelta(minutes=int(duration))
@@ -277,13 +353,23 @@ while True:
 
     intent = intent_chain.invoke({"input": user_input}).strip().upper()
 
-    if "EMAIL" in intent:
+    if intent not in ["CHAT", "EMAIL", "CALENDAR", "NEWS"]:
+        intent = "CHAT"
+
+    #Allow CONFIRM to trigger email sending
+    if intent == "EMAIL" or (pending_email and user_input.strip().upper() == "CONFIRM"):
         reply = email_tool(user_input)
-    elif "CALENDAR" in intent:
+
+    elif intent == "CALENDAR":
         reply = calendar_tool(user_input)
-    elif "NEWS" in intent:
+
+    elif intent == "NEWS":
         reply = news_tool(user_input)
+
     else:
         reply = normal_chat(user_input)
 
     print("AI:", reply)
+
+    ## build ollama model
+    ## think about making agent have access to you email and he can make a reply msg to email and when you open gmail own your own then there should be a gmail send button and when you click that button the email should be sent.

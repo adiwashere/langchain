@@ -45,7 +45,7 @@ This layer contains main logic modules :
 email_tool()
 calendar_tool()
 news_tool()
-normal_chat()
+normal_chat()   
 
 Each module:
 Receives processed input
@@ -94,7 +94,7 @@ I can scale it as per user need without affecting or changing other
 module.
 
 ## Modularity
-Each tool is independent
+Each tool is independent 
 
 ## Reusability
 Intent classifier can be reused.
@@ -109,6 +109,138 @@ You can test each tool separately
 3. Extract Modeules and tools - Extract structured data from natural language
 4. Task Modules - Email Module, Calender Module, News Module, Chat Module
 5. External APIs
+
+## Component : Intent Classifier and Email_Tool
+Purpose
+
+The intent classifier determines what the user wants to do.
+
+Example intents: Chat, Email, Calender, News
+
+## Working
+Steps performed:
+
+1.Accept user message
+2.Analyze text using rules or AI model
+3.Identify user intent
+4.Forward request to the correct module
+
+### Example Code
+
+```python
+def classify_intent(message):
+    if "mail" in message:
+        return "EMAIL"
+    elif "meeting" in message:
+        return "CALENDAR"
+    elif "news" in message:
+        return "NEWS"
+    else:
+        return "CHAT"
+```
+Here it take input as message from intent generation chain 
+and through this function it find out if there is keyword like "mail" and matches the keyword and perform the action accordingly.
+
+## Email Tool Function
+
+The `email_tool()` function is responsible for sending emails based on a user message.
+
+
+
+# Application Components
+
+## Components Present in the System
+
+The software system consists of the following application components:
+
+---
+
+## 1. Frontend (User Interface)
+
+The Frontend is the part of the system that interacts directly with the user.
+
+**Responsibilities:**
+- Accepts user input (messages or commands)
+- Displays responses and results
+- Sends requests to the backend through APIs
+
+**Examples:**
+- Web interface
+- Chat interface
+
+---
+
+## 2. Backend 
+
+The Backend acts as the central controller of the system.
+
+**Responsibilities:**
+- Receives requests from the frontend
+- Processes user input
+- Routes the request to the correct service
+- Sends results back to the frontend
+
+---
+
+## 3. Intent Classifier
+
+This component determines what the user wants to do.
+
+**Responsibilities:**
+- Analyzes user messages
+- Classifies intent such as:
+  - EMAIL
+  - CALENDAR
+  - NEWS
+  - CHAT
+
+**Example Code:**
+
+```python
+def classify_intent(message):
+    if "mail" in message:
+        return "EMAIL"
+    elif "meeting" in message:
+        return "CALENDAR"
+    elif "news" in message:
+        return "NEWS"
+    else:
+        return "CHAT"
+```
+### 4.Email Service
+
+Handles email-related tasks.
+Extracts recipient, subject, and body.
+Sends email using an email API.
+
+## 5. Calendar Service
+
+Handles meeting scheduling tasks.
+Extracts date and time.
+Creates calendar events
+
+## 6. News Service
+Handles news-related requests.
+Fetches news from an API.
+Returns summarized results
+
+## 7. Chat Service
+Handles general conversation.
+Provides responses when the request is not related to email, calendar, or news.
+
+## 8. External APIs / Services
+These are third-party services used by the system.
+Email API
+News API
+Calendar API
+
+
+
+
+
+
+
+
 
 
 # Assignment — Software Architecture
