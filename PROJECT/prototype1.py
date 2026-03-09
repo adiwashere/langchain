@@ -179,6 +179,9 @@ def get_services():
     if os.path.exists("token.json"):
         creds = Credentials.from_authorized_user_file("token.json", SCOPES)
 
+    if creds and creds.expired and creds.refresh_token:
+        creds.refresh(Request())
+
     # If no valid credentials, do login
     if not creds or not creds.valid:
         flow = InstalledAppFlow.from_client_secrets_file(
@@ -320,7 +323,7 @@ def calendar_tool(user_input):
 def news_tool(user_input):
     location = location_chain.invoke({"input": user_input}).strip()
 
-    query = f"Latest news today in {location}"
+    query = user_input
     results = search.run(query)
 
     if not results:
@@ -337,6 +340,11 @@ def news_tool(user_input):
 
 
 def normal_chat(user_input):
+    today = datetime.date.today()
+    system_msg = HumanMessage(
+        content=f"Today's date is {today}. Answer the user's question."
+    )
+    chat_history = [system_msg]
     chat_history.append(HumanMessage(content=user_input))
     response = model.invoke(chat_history)
     chat_history.append(AIMessage(content=response.content))
@@ -344,6 +352,7 @@ def normal_chat(user_input):
 
 
 print("AI Assistant Started (type 'exit' to quit)\n")
+calendar_service, gmail_service, sender_email = get_services()
 
 while True:
     user_input = input("You: ")
