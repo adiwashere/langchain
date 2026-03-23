@@ -18,14 +18,14 @@ from langchain_community.tools import DuckDuckGoSearchRun
 load_dotenv()
 
 
-# llm_endpoint = HuggingFaceEndpoint(
-#     repo_id="google/gemma-2-9b-it",
-#     task="text-generation",
-#     temperature=0.2,
-# )
+llm_endpoint = HuggingFaceEndpoint(
+    repo_id="google/gemma-2-9b-it",
+    task="text-generation",
+    temperature=0.2,
+)
 
-# model = ChatHuggingFace(llm=llm_endpoint)
-model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)   
+model = ChatHuggingFace(llm=llm_endpoint)
+# model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.2)   
 
 chat_history = []
 pending_email = None

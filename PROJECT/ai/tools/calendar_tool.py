@@ -6,7 +6,7 @@ from langchain_core.output_parsers import StrOutputParser
 
 calendar_extract_chain = calendar_extract_prompt | model | StrOutputParser()
 
-def calendar_tool(user_input):
+def calendar_tool(user_input, session):
 
     details_text = calendar_extract_chain.invoke({"input": user_input})
 

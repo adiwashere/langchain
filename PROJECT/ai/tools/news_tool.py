@@ -7,7 +7,7 @@ search = DuckDuckGoSearchRun()
 
 location_chain = location_extract_prompt | model | StrOutputParser()
 
-def news_tool(user_input):
+def news_tool(user_input,session):
 
     location = location_chain.invoke({"input": user_input}).strip()
 
