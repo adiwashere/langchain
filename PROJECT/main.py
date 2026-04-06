@@ -6,7 +6,7 @@ from ai.assistant import handle_request
 
 app = FastAPI()
 
-# ✅ VERY IMPORTANT (frontend connection)
+# VERY IMPORTANT (frontend connection)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],   # later restrict to your frontend URL

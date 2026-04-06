@@ -80,7 +80,7 @@ email_extract_chain = email_extract_prompt | model | StrOutputParser()
 
 def email_tool(user_input, session):
 
-    # ✅ CONFIRM BLOCK
+    #  CONFIRM BLOCK
     if session["pending_email"] and user_input.strip().lower() == "confirm":
 
         gmail_service, _ = get_gmail_service()
@@ -97,7 +97,7 @@ def email_tool(user_input, session):
 
         return f"Email successfully sent to {sent_to}"
 
-    # ✅ DRAFT CREATION
+    #  DRAFT CREATION
     gmail_service, sender_email = get_gmail_service()
 
     sender_name = sender_email.split("@")[0]
@@ -121,7 +121,7 @@ def email_tool(user_input, session):
     if not re.match(email_pattern, to):
         return "Invalid email address."
 
-    # ✅ STORE IN SESSION (IMPORTANT)
+    #  STORE IN SESSION (IMPORTANT)
     session["pending_email"] = {
         "to": to,
         "subject": subject,

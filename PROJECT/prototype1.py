@@ -215,6 +215,12 @@ def send_email(gmail_service, to, subject, body):
         body={"raw": raw_message}
     ).execute()
 
+def extract_email_from_text(text):
+    import re
+    email_pattern = r'[\w\.-]+@[\w\.-]+\.\w+'
+    matches = re.findall(email_pattern, text)
+    return matches[0] if matches else None
+
 def email_tool(user_input):
     global pending_email
 
@@ -239,16 +245,17 @@ def email_tool(user_input):
 
     sender_name = sender_email.split("@")[0]
 
+# STEP 1: Extract email using regex (NOT LLM)
+    to = extract_email_from_text(user_input)
+
+# STEP 2: Generate subject + body using LLM
     details_text = email_extract_chain.invoke({
         "input": user_input,
         "sender_name": sender_name
-    })
-
-    print("\nGenerated Email:\n", details_text)
+        })
 
     data = parse_details(details_text)
 
-    to = data.get("to")
     subject = data.get("subject", "No Subject")
     body = data.get("body", "")
 
